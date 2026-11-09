@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>やること</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="やること">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+<style>
+/* LifeOS デザインシステム（白地＋くすみピンクを一点差し色）。等幅・丸ボタン・番号ラベルは使わない */
+:root{
+  --bg:#ffffff; --surface:#faf9f8; --surface2:#f3f2f1;
+  --border:rgb(229,229,229); --text:rgb(62,58,57); --muted:rgb(140,136,135);
+  --accent:rgb(241,157,181); --accent-ink:rgb(196,92,125); --red:#C62828;
+  --sans:'Noto Sans JP','Hiragino Sans',sans-serif;
+  --ax-shukatsu:rgb(241,157,181); --ax-private:rgb(214,186,140); --ax-eichi:rgb(150,190,160);
+  --ax-yakin:rgb(120,114,113); --ax-bcone:rgb(176,166,214); --ax-other:rgb(205,201,200);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16151a; --surface:#1e1d23; --surface2:#26252c; --border:#34333b; --text:#ece8ea; --muted:#9b9499;
+    --accent-ink:rgb(241,157,181); --red:#ef7b7b; --ax-yakin:#9b9499; --ax-other:#5a5860;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding:env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text)}
+input:not([type=checkbox]),select,textarea{-webkit-appearance:none;appearance:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-height:42px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.wrap{max-width:560px;margin:0 auto;padding:12px 16px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:20px;font-weight:500}
+h2{margin:0;font-size:14px;font-weight:500}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:0;background:transparent;cursor:pointer;padding:6px 0}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.sync.ok i{background:#5aa36a} .sync.wait i{background:var(--accent)} .sync.off i{background:var(--muted)}
+.btn{white-space:nowrap;flex-shrink:0;font-size:13px;border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:9px 14px;cursor:pointer;color:var(--text)}
+.btn.acc{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.danger{color:var(--red)}
+.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)} .small{font-size:12px}
+
+/* 追加 */
+.add{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px;display:flex;flex-direction:column;gap:10px}
+.add .line{display:flex;gap:8px}
+.add .line input{flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--border);background:var(--bg);border-radius:6px;padding:6px 11px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text)}
+.chip i{width:8px;height:8px;border-radius:2px;background:var(--c)}
+.chip[aria-pressed="true"]{border-color:var(--text);font-weight:500}
+.chip .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chips.due .chip{padding:5px 10px;font-size:12.5px}
+#dueDate{width:auto;min-height:34px;padding:4px 8px;font-size:13px}
+
+/* 一覧 */
+.group{display:flex;flex-direction:column;gap:6px}
+.group h2{display:flex;align-items:center;gap:8px}
+.group h2 i{width:10px;height:10px;border-radius:2px;background:var(--c)}
+.group h2 .n{font-weight:300;font-size:12px;color:var(--muted)}
+.list{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.item{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg)}
+.item:first-child{border-top:0}
+.item input[type=checkbox]{width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent)}
+.item .t{cursor:pointer;min-width:0}
+.item .t b{font-weight:400;word-break:break-word}
+.item .meta{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.item .meta .over{color:var(--red);font-weight:500}
+.item .meta .today{color:var(--accent-ink);font-weight:500}
+.item .meta .tag{border:1px solid var(--border);border-radius:4px;padding:0 5px}
+.item.done b{text-decoration:line-through;color:var(--muted)}
+.empty{padding:12px;color:var(--muted);font-size:13px}
+.item .acts{grid-column:2;display:flex;gap:6px;margin-top:4px}
+.item .acts .btn{padding:4px 10px;font-size:12px}
+.item .meta .contact{color:var(--text)}
+.item .meta .later{color:var(--muted)}
+details.dn summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0}
+
+/* 表（縦＝日付・横＝6軸）。2026-11-09 本人「一画面で全部見たい」 */
+.views{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.views button{border:0;background:var(--bg);padding:5px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
+.views button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.grid{display:grid;grid-template-columns:40px repeat(6,minmax(0,1fr));border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:11px;line-height:1.35}
+.grid>div{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:32px;padding:3px;min-width:0}
+.grid>div.c0{border-left:0}
+.grid>.hd{border-top:0;min-height:0;padding:5px 2px;text-align:center;font-weight:500;background:var(--surface);position:sticky;top:0;z-index:1;word-break:keep-all;overflow-wrap:anywhere}
+.grid>.hd i{display:block;width:100%;height:3px;border-radius:2px;background:var(--c);margin-bottom:3px}
+.grid>.dt{text-align:center;color:var(--muted);background:var(--surface);padding-top:5px}
+.grid>.dt b{display:block;font-weight:500;color:var(--text);font-size:11.5px}
+.grid>.dt.today{background:color-mix(in srgb,var(--accent) 16%,var(--surface))}
+.grid>.dt.over b{color:var(--red)}
+.grid>.cell{cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.grid>.cell.today{background:color-mix(in srgb,var(--accent) 6%,var(--bg))}
+.grid>.cell:hover{background:var(--surface)}
+.grid .it{border-left:2px solid var(--c);padding-left:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all}
+.grid .it.over{color:var(--red)}
+.grid .more{color:var(--muted)}
+#cellList .list{margin:0}
+/* 表を広く見せるため、書いていないときは軸・期限のボタンをたたむ */
+.add.compact .chips{display:none}
+
+dialog{border:0;border-radius:14px;padding:0;width:min(520px,calc(100% - 24px));background:var(--bg);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.sheet{padding:16px;display:flex;flex-direction:column;gap:10px}
+label.f{display:flex;flex-direction:column;gap:4px}
+label.f>span{font-size:12px;color:var(--muted)}
+textarea{min-height:70px;resize:vertical}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px)}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="toast" role="status"></div>
+<main class="wrap">
+  <div class="top">
+    <h1>やること</h1>
+    <div class="views" id="views"><button type="button" data-view="grid">表</button><button type="button" data-view="list">一覧</button></div>
+    <button class="sync off" id="syncBtn" type="button"><i></i><span id="syncText">まだ同期していません</span></button>
+  </div>
+
+  <form class="add compact" id="addForm" autocomplete="off">
+    <div class="line">
+      <input id="addTitle" placeholder="やることを書く（例：英智の教材を印刷）" enterkeyhint="done">
+      <button class="btn acc" type="submit">追加</button>
+    </div>
+    <div class="chips" id="axisChips"></div>
+    <div class="chips due" id="dueChips"></div>
+  </form>
+
+  <div class="chips" id="filter"></div>
+  <div id="list"></div>
+</main>
+
+<dialog id="dlg"><form class="sheet" id="editForm" method="dialog">
+  <h2>やることを直す</h2>
+  <label class="f"><span>やること</span><input name="title" required></label>
+  <label class="f"><span>軸</span><select name="axis" id="editAxis"></select></label>
+  <label class="f"><span>期限（なしでもよい）</span><input name="due" type="date"></label>
+  <label class="f"><span>メモ（連絡先・持ち物など）</span><textarea name="note"></textarea></label>
+  <div class="row" style="flex-wrap:nowrap">
+    <label class="f" style="flex:1.3"><span>いつ連絡する（なしでもよい）</span><input name="contact_at" type="datetime-local"></label>
+    <label class="f" style="flex:1"><span>誰に</span><input name="contact_to" placeholder="例：塾長"></label>
+  </div>
+  <div class="row" style="justify-content:space-between">
+    <button type="button" class="btn ghost danger" id="delBtn">消す</button>
+    <div class="row"><button type="button" class="btn" id="cancelBtn">やめる</button><button type="submit" class="btn acc">保存</button></div>
+  </div>
+</form></dialog>
+
+<dialog id="cellDlg"><form class="sheet" id="cellForm" method="dialog" autocomplete="off">
+  <h2 id="cellTitle"></h2>
+  <div id="cellList"></div>
+  <div class="row" style="flex-wrap:nowrap"><input id="cellAdd" placeholder="ここに足す" enterkeyhint="done"><button class="btn acc" type="submit">追加</button></div>
+  <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="cellClose">閉じる</button></div>
+</form></dialog>
+
+<dialog id="deferDlg"><form class="sheet" id="deferForm" method="dialog" autocomplete="off">
+  <h2 id="deferTitle">あとに回す</h2>
+  <label class="f"><span>新しい期限</span></label>
+  <div class="chips" id="deferDue"></div>
+  <input type="date" name="due" id="deferDate" required>
+  <label class="f"><span>いつ連絡する？（相手がいるとき。時刻になったら通知します）</span></label>
+  <div class="chips" id="deferWhen"></div>
+  <div class="row" style="flex-wrap:nowrap">
+    <input type="datetime-local" name="contact_at" id="deferAt" style="flex:1.3" aria-label="連絡する日時">
+    <input name="contact_to" id="deferTo" placeholder="誰に（例：塾長）" style="flex:1">
+  </div>
+  <p class="small muted" style="margin:0">重なりや遅れは、決めたその日のうちに正直に伝える。</p>
+  <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="deferCancel">やめる</button><button type="submit" class="btn acc">あとに回す</button></div>
+</form></dialog>
+
+<dialog id="setDlg"><div class="sheet">
+  <h2>設定</h2>
+  <label class="f"><span>PCのアドレス（日取り）</span><input id="pcUrl" placeholder="https://…/nittei"></label>
+  <p class="small muted" id="setInfo"></p>
+  <div class="row">
+    <button class="btn acc" id="syncNow" type="button">今すぐ同期</button>
+    <button class="btn" id="exportBtn" type="button">書き出す</button>
+    <button class="btn" id="importBtn" type="button">読み込む</button>
+  </div>
+  <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v3</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+</div></dialog>
+
+<script>
+(function(){
+"use strict";
+const LS = "yarukoto_v1";
+const AXES = [["shukatsu","就活"],["private","プライベート"],["eichi","英智"],["yakin","夜勤"],["bcone","ビーコネ"],["other","その他"]];
+const AXN = Object.fromEntries(AXES);
+const WD = ["日","月","火","水","木","金","土"];
+const pad = n => String(n).padStart(2, "0");
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const dateOf = iso => { const [y,m,d] = iso.split("-").map(Number); return new Date(y, m-1, d); };
+const addDays = (iso, n) => { const d = dateOf(iso); d.setDate(d.getDate()+n); return isoOf(d); };
+const today = () => isoOf(new Date());
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const $ = id => document.getElementById(id);
+
+/* ---------- 保存（localStorage が正。PCが起きていれば突き合わせる） ---------- */
+function fresh(){ return {v:1, items:{}, auto:[], serverTs:{}, lastAxis:"other", filter:"all", view:"grid", lastSyncAt:0, settings:{pc:"https://kawauso.tail786f62.ts.net/nittei"}}; }
+function load(){
+  const base = fresh();
+  try{
+    const s = JSON.parse(localStorage.getItem(LS) || "null");
+    if(s && s.v === 1 && s.items){ const out = Object.assign(base, s); out.settings = Object.assign({}, base.settings, s.settings || {}); return out; }
+  }catch(e){}
+  return base;
+}
+let st = load();
+function persist(){ try{ localStorage.setItem(LS, JSON.stringify(st)); }catch(e){ toast("保存できませんでした"); } }
+let syncTimer = null;
+function save(){ persist(); clearTimeout(syncTimer); syncTimer = setTimeout(() => sync(false), 2500); badge(); }
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove("on"), 2200); }
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function put(x){ x.ts = Date.now(); st.items[x.id] = x; save(); }
+
+/* ---------- 同期 ---------- */
+let syncState = "off", syncing = false;
+const pcUrl = () => (st.settings.pc || "").trim().replace(/\/$/, "");
+// PCが最後に返した版と違うものが「未送信」（別の端末で直したぶんを未送信と数えない）
+const unsent = () => Object.values(st.items).filter(x => (st.serverTs || {})[x.id] !== x.ts).length;
+function badge(){
+  const n = unsent(), b = $("syncBtn");
+  let text, cls;
+  if(syncState === "ok" && !n){ cls = "ok"; text = `同期済み ${new Date(st.lastSyncAt).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})}`; }
+  else if(n){ cls = "wait"; text = `未送信 ${n}件`; }
+  else { cls = "off"; text = st.lastSyncAt ? "PCに届かない（この端末に保存）" : "まだ同期していません"; }
+  b.className = "sync " + cls; $("syncText").textContent = text;
+}
+async function sync(manual){
+  const url = pcUrl();
+  if(!url){ if(manual) toast("設定にPCのアドレスを入れてください"); return; }
+  if(syncing) return;
+  syncing = true;
+  const sentAt = Date.now();
+  try{
+    const res = await fetch(`${url}/api/todo/sync`, {method:"POST", headers:{"Content-Type":"application/json; charset=utf-8"},
+      body: JSON.stringify({items: Object.values(st.items)})});
+    if(!res.ok) throw new Error("bad");
+    const data = await res.json();
+    st.serverTs = {};
+    (data.items || []).forEach(x => { st.serverTs[x.id] = x.ts; const cur = st.items[x.id]; if(!cur || x.ts >= cur.ts) st.items[x.id] = x; });
+    if(Array.isArray(data.auto)) st.auto = data.auto;
+    st.lastSyncAt = sentAt; syncState = "ok"; persist(); render();
+    if(manual) toast("同期しました");
+  }catch(e){
+    syncState = "off"; badge();
+    if(manual) toast("PCが起きていないと同期できません（この端末には保存されています）");
+  }finally{ syncing = false; }
+}
+
+/* ---------- 一覧の材料 ---------- */
+// 手入力＋就活の自動ぶん。自動ぶんは「できた」の印だけ items に持つ
+function allItems(){
+  const mine = Object.values(st.items).filter(x => !x.deleted && !String(x.id).startsWith("auto:"));
+  const auto = (st.auto || []).map(a => { const o = st.items[a.id]; return Object.assign({}, a, {done: !!(o && o.done), ts: o ? o.ts : 0}); });
+  return mine.concat(auto);
+}
+function dueLabel(due){
+  if(!due) return "";
+  const t = today(), d = dateOf(due), md = `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`;
+  if(due < t) return `<span class="over">期限切れ ${md}</span>`;
+  if(due === t) return `<span class="today">今日まで</span>`;
+  if(due === addDays(t, 1)) return `<span class="today">明日まで ${md}</span>`;
+  return `${md}まで`;
+}
+const byDue = (a, b) => (a.due || "9999").localeCompare(b.due || "9999") || (a.created || 0) - (b.created || 0);
+function contactLabel(x){
+  const d = dateOf(x.contact_at.slice(0, 10)), t = today();
+  const day = x.contact_at.slice(0, 10) === t ? "今日" : x.contact_at.slice(0, 10) === addDays(t, 1) ? "明日" : `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`;
+  return `${day} ${x.contact_at.slice(11, 16)}${x.contact_to ? ` ${esc(x.contact_to)}に連絡` : " に連絡"}`;
+}
+function itemRow(x){
+  return `<div class="item ${x.done ? "done" : ""}">
+    <input type="checkbox" data-done="${esc(x.id)}" ${x.done ? "checked" : ""} aria-label="できた">
+    <div class="t" data-open="${esc(x.id)}" role="button" tabindex="0"><b>${esc(x.title)}</b>
+      <div class="meta">${dueLabel(x.due)}${x.auto ? `<span class="tag">就活管理から</span>` : ""}${x.deadline && x.deadline !== x.due ? `<span>締切 ${+x.deadline.slice(5,7)}/${+x.deadline.slice(8,10)}</span>` : ""}${x.minutes ? `<span>${x.minutes}分</span>` : ""}${x.note ? `<span>メモあり</span>` : ""}${x.contact_at ? `<span class="contact">📞 ${contactLabel(x)}</span>` : ""}${x.deferred ? `<span class="later">あとに回した×${x.deferred}</span>` : ""}</div>
+    </div>${!x.auto && !x.done ? `<div class="acts"><button type="button" class="btn" data-defer="${esc(x.id)}">あとに回す</button></div>` : ""}</div>`;
+}
+
+/* ---------- 画面 ---------- */
+let addAxis = st.lastAxis || "other", addDue = "";
+function renderAdd(){
+  $("axisChips").innerHTML = AXES.map(([k, n]) =>
+    `<button type="button" class="chip" data-axis="${k}" aria-pressed="${k === addAxis}" style="--c:var(--ax-${k})"><i></i>${n}</button>`).join("");
+  const t = today(), sun = addDays(t, (7 - dateOf(t).getDay()) % 7);
+  const opts = [["", "期限なし"], [t, "今日"], [addDays(t, 1), "明日"]].concat(sun > addDays(t, 1) ? [[sun, "今週中"]] : []);
+  const custom = addDue && !opts.some(o => o[0] === addDue);
+  $("dueChips").innerHTML = opts.map(([v, n]) => `<button type="button" class="chip" data-due="${v}" aria-pressed="${v === addDue}">${n}</button>`).join("")
+    + `<input type="date" id="dueDate" value="${custom ? addDue : ""}" aria-label="期限の日付">`;
+}
+// 表の行：期限切れ・今日から1週間（いつも出す）・それより先でやることがある日・期限なし
+function gridRows(open){
+  const t = today(), rows = [];
+  if(open.some(x => x.due && x.due < t)) rows.push({key:"over", match: x => x.due && x.due < t});
+  const later = new Set(open.filter(x => x.due && x.due > addDays(t, 6)).map(x => x.due));
+  for(let i = 0; i < 7; i++){ const d = addDays(t, i); rows.push({key:d, match: x => x.due === d}); }
+  [...later].sort().forEach(d => rows.push({key:d, match: x => x.due === d}));
+  rows.push({key:"none", match: x => !x.due});
+  return rows;
+}
+function rowLabel(key){
+  if(key === "over") return {cls:"over", html:"<b>期限<br>切れ</b>"};
+  if(key === "none") return {cls:"", html:"<b>期限<br>なし</b>"};
+  const d = dateOf(key);
+  return {cls: key === today() ? "today" : "", html:`<b>${d.getMonth()+1}/${d.getDate()}</b>${WD[d.getDay()]}`};
+}
+const SHORT = {shukatsu:"就活", private:"プライ<wbr>ベート", eichi:"英智", yakin:"夜勤", bcone:"ビー<wbr>コネ", other:"その他"};
+function renderGrid(open){
+  const t = today(), rows = gridRows(open);
+  let h = `<div class="hd c0"></div>` + AXES.map(([k]) => `<div class="hd" style="--c:var(--ax-${k})"><i></i>${SHORT[k]}</div>`).join("");
+  rows.forEach(r => {
+    const lab = rowLabel(r.key);
+    h += `<div class="dt c0 ${lab.cls}">${lab.html}</div>`;
+    AXES.forEach(([k]) => {
+      const list = open.filter(x => x.axis === k && r.match(x)).sort(byDue);
+      const shown = list.slice(0, 3).map(x => `<div class="it ${x.due && x.due < t ? "over" : ""}" style="--c:var(--ax-${k})">${esc(x.title)}</div>`).join("");
+      h += `<div class="cell ${r.key === t ? "today" : ""}" data-cell="${r.key}|${k}" role="button" tabindex="0" aria-label="${esc(rowLabel(r.key).html.replace(/<[^>]+>/g, ""))} ${AXN[k]} ${list.length}件">${shown}${list.length > 3 ? `<div class="more">ほか${list.length - 3}件</div>` : ""}</div>`;
+    });
+  });
+  return `<div class="grid">${h}</div>`;
+}
+function render(){
+  const items = allItems(), open = items.filter(x => !x.done);
+  document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === st.view)));
+  $("filter").hidden = st.view === "grid";
+  if(st.view === "grid"){
+    const weekAgo = Date.now() - 7 * 864e5;
+    const done = items.filter(x => x.done && (x.ts || 0) > weekAgo).sort((a, b) => b.ts - a.ts);
+    $("list").innerHTML = renderGrid(open)
+      + (done.length ? `<details class="dn"><summary>できた（この1週間・${done.length}件）</summary><div class="list">${done.map(itemRow).join("")}</div></details>` : "");
+    if($("cellDlg").open) renderCell();
+    badge();
+    return;
+  }
+  const cnt = k => open.filter(x => x.axis === k).length;
+  $("filter").innerHTML = `<button type="button" class="chip" data-filter="all" aria-pressed="${st.filter === "all"}">すべて <span class="n">${open.length}</span></button>`
+    + AXES.map(([k, n]) => `<button type="button" class="chip" data-filter="${k}" aria-pressed="${st.filter === k}" style="--c:var(--ax-${k})"><i></i>${n} <span class="n">${cnt(k)}</span></button>`).join("");
+  const axes = st.filter === "all" ? AXES : AXES.filter(a => a[0] === st.filter);
+  const weekAgo = Date.now() - 7 * 864e5;
+  let html = "";
+  axes.forEach(([k, n]) => {
+    const list = open.filter(x => x.axis === k).sort(byDue);
+    if(st.filter === "all" && !list.length) return;
+    html += `<section class="group"><h2 style="--c:var(--ax-${k})"><i></i>${n}<span class="n">${list.length}件</span></h2>
+      <div class="list">${list.length ? list.map(itemRow).join("") : `<div class="empty">ありません</div>`}</div></section>`;
+  });
+  if(!html) html = `<div class="empty">やることはありません。上の欄から足せます。</div>`;
+  const done = items.filter(x => x.done && (st.filter === "all" || x.axis === st.filter) && (x.ts || 0) > weekAgo).sort((a, b) => b.ts - a.ts);
+  if(done.length) html += `<details class="dn"><summary>できた（この1週間・${done.length}件）</summary><div class="list">${done.map(itemRow).join("")}</div></details>`;
+  $("list").innerHTML = html;
+  if($("cellDlg").open) renderCell();
+  badge();
+}
+
+/* ---------- 操作 ---------- */
+$("addForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const title = $("addTitle").value.trim();
+  if(!title){ $("addTitle").focus(); return; }
+  const id = newId();
+  put({id, axis: addAxis, title, due: addDue, note: "", done: false, deleted: false, created: Date.now()});
+  st.lastAxis = addAxis; persist();
+  $("addTitle").value = ""; addDue = ""; renderAdd(); render(); $("addTitle").blur(); $("addForm").classList.add("compact");
+  toast(`追加しました：［${AXN[addAxis]}］${title}`);
+});
+$("addForm").addEventListener("click", ev => {
+  const a = ev.target.closest("[data-axis]"); if(a){ addAxis = a.dataset.axis; renderAdd(); return; }
+  const d = ev.target.closest("[data-due]"); if(d){ addDue = d.dataset.due; renderAdd(); }
+});
+// 欄を押すか何か書いてあるときだけ、軸と期限のボタンを出す
+$("addTitle").addEventListener("focus", () => $("addForm").classList.remove("compact"));
+document.addEventListener("pointerdown", ev => {
+  if(!ev.target.closest("#addForm") && !$("addTitle").value.trim()) $("addForm").classList.add("compact");
+});
+$("addForm").addEventListener("change", ev => { if(ev.target.id === "dueDate"){ addDue = ev.target.value; renderAdd(); } });
+$("filter").addEventListener("click", ev => {
+  const f = ev.target.closest("[data-filter]"); if(!f) return;
+  st.filter = f.dataset.filter; persist(); render();
+});
+document.addEventListener("change", ev => {
+  const id = ev.target.dataset.done; if(!id) return;
+  const auto = (st.auto || []).find(a => a.id === id);
+  const cur = st.items[id] || (auto ? {id, axis: "shukatsu", title: auto.title, due: auto.due, note: "", deleted: false, created: Date.now()} : null);
+  if(!cur) return;
+  put(Object.assign({}, cur, {done: ev.target.checked}));
+  render();
+  if(ev.target.checked) toast("できた！");
+});
+let editId = null;
+function openEdit(id){
+  const auto = (st.auto || []).find(a => a.id === id);
+  if(auto){
+    if(auto.url) window.open(auto.url, "_blank", "noopener");
+    else toast("就活管理から入っているので、ここでは直せません");
+    return;
+  }
+  const x = st.items[id]; if(!x) return;
+  editId = id;
+  const f = $("editForm");
+  f.title.value = x.title; f.axis.value = x.axis; f.due.value = x.due || ""; f.note.value = x.note || "";
+  f.contact_at.value = x.contact_at || ""; f.contact_to.value = x.contact_to || "";
+  $("dlg").showModal();
+}
+document.addEventListener("click", ev => {
+  const df = ev.target.closest("[data-defer]"); if(df){ openDefer(df.dataset.defer); return; }
+  const t = ev.target.closest("[data-open]"); if(t){ openEdit(t.dataset.open); return; }
+  const c = ev.target.closest("[data-cell]"); if(c) openCell(c.dataset.cell);
+});
+document.addEventListener("keydown", ev => {
+  if(!(ev.key === "Enter" || ev.key === " ")) return;
+  const t = ev.target.closest("[data-open],[data-cell]"); if(!t) return;
+  ev.preventDefault(); t.dataset.open ? openEdit(t.dataset.open) : openCell(t.dataset.cell);
+});
+$("views").addEventListener("click", ev => { const b = ev.target.closest("[data-view]"); if(b){ st.view = b.dataset.view; persist(); render(); } });
+
+/* ---------- あとに回す（2026-11-09 本人「押したら期限と、いつ連絡するかを入れる」） ----------
+   新しい期限は必須。連絡は相手がいるときだけ。時刻になるとPCが ntfy で知らせる（PCに届いたとき予約される） */
+let deferId = null;
+const at = (iso, hhmm) => `${iso}T${hhmm}`;
+function renderDeferChips(){
+  const x = st.items[deferId], t = today(), base = x.due && x.due > t ? x.due : t;
+  const sun = addDays(t, (7 - dateOf(t).getDay()) % 7 || 7);
+  const dues = [[addDays(base, 1), "1日後"], [addDays(base, 2), "2日後"], [sun, "今週末"], [addDays(base, 7), "1週間後"]];
+  $("deferDue").innerHTML = dues.map(([v, n]) => { const d = dateOf(v);
+    return `<button type="button" class="chip" data-ddue="${v}" aria-pressed="${$("deferDate").value === v}">${n} ${d.getMonth()+1}/${d.getDate()}</button>`; }).join("");
+  const now = new Date(), hh = now.getHours();
+  const whens = [[hh < 20 ? at(t, "20:00") : at(addDays(t, 1), "12:00"), hh < 20 ? "今日20:00" : "明日12:00"], [at(addDays(t, 1), "12:00"), "明日12:00"], ["", "連絡なし"]]
+    .filter((w, i, a) => a.findIndex(y => y[0] === w[0]) === i);
+  $("deferWhen").innerHTML = whens.map(([v, n]) => `<button type="button" class="chip" data-dwhen="${v}" aria-pressed="${($("deferAt").value || "").slice(0, 16) === v}">${n}</button>`).join("");
+}
+function openDefer(id){
+  const x = st.items[id]; if(!x) return;
+  deferId = id;
+  $("deferTitle").textContent = `「${x.title}」をあとに回す`;
+  $("deferDate").value = ""; $("deferAt").value = x.contact_at || ""; $("deferTo").value = x.contact_to || "";
+  renderDeferChips();
+  $("deferDlg").showModal();
+}
+$("deferForm").addEventListener("click", ev => {
+  const d = ev.target.closest("[data-ddue]"); if(d){ $("deferDate").value = d.dataset.ddue; renderDeferChips(); return; }
+  const w = ev.target.closest("[data-dwhen]"); if(w){ $("deferAt").value = w.dataset.dwhen; if(!w.dataset.dwhen) $("deferTo").value = ""; renderDeferChips(); }
+});
+$("deferForm").addEventListener("change", () => renderDeferChips());
+$("deferForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const x = st.items[deferId]; if(!x) return;
+  const due = $("deferDate").value;
+  if(!due){ toast("新しい期限を選んでください"); return; }
+  const contact_at = ($("deferAt").value || "").slice(0, 16), contact_to = $("deferTo").value.trim();
+  put(Object.assign({}, x, {due, contact_at, contact_to, deferred: (x.deferred || 0) + 1, due_orig: x.due_orig || x.due || ""}));
+  $("deferDlg").close(); render();
+  const d = dateOf(due);
+  toast(`${d.getMonth()+1}/${d.getDate()}に回しました${contact_at ? "。連絡の時刻に通知します" : ""}`);
+});
+$("deferCancel").onclick = () => $("deferDlg").close();
+
+/* ---------- マス（日付×軸）を押したとき：その中身と、そこへ足す欄 ---------- */
+let cellKey = null;
+function cellParts(){ const [row, axis] = cellKey.split("|"); return {row, axis}; }
+function renderCell(){
+  const {row, axis} = cellParts(), t = today();
+  const lab = row === "over" ? "期限切れ" : row === "none" ? "期限なし" : (() => { const d = dateOf(row); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; })();
+  $("cellTitle").textContent = `${lab}・${AXN[axis]}`;
+  const match = row === "over" ? (x => x.due && x.due < t) : row === "none" ? (x => !x.due) : (x => x.due === row);
+  const list = allItems().filter(x => x.axis === axis && match(x)).sort((a, b) => (a.done - b.done) || byDue(a, b));
+  $("cellList").innerHTML = list.length ? `<div class="list">${list.map(itemRow).join("")}</div>` : `<div class="empty">まだありません</div>`;
+  $("cellAdd").placeholder = `${lab}の${AXN[axis]}に足す`;
+}
+function openCell(key){ cellKey = key; renderCell(); $("cellAdd").value = ""; $("cellDlg").showModal(); }
+$("cellForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const title = $("cellAdd").value.trim(); if(!title) return;
+  const {row, axis} = cellParts();
+  const due = row === "none" ? "" : row === "over" ? today() : row;   // 期限切れのマスに足したものは今日まで
+  put({id: newId(), axis, title, due, note: "", done: false, deleted: false, created: Date.now()});
+  $("cellAdd").value = ""; render(); toast("追加しました");
+});
+$("cellClose").onclick = () => $("cellDlg").close();
+$("editAxis").innerHTML = AXES.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
+$("editForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const f = ev.target, x = st.items[editId]; if(!x) return;
+  const title = f.title.value.trim(); if(!title) return;
+  put(Object.assign({}, x, {title, axis: f.axis.value, due: f.due.value || "", note: f.note.value.trim(),
+    contact_at: (f.contact_at.value || "").slice(0, 16), contact_to: f.contact_to.value.trim()}));
+  $("dlg").close(); render();
+});
+$("cancelBtn").onclick = () => $("dlg").close();
+$("delBtn").onclick = () => {
+  const x = st.items[editId]; if(!x) return;
+  if(!confirm(`「${x.title}」を消しますか？`)) return;
+  put(Object.assign({}, x, {deleted: true}));
+  $("dlg").close(); render(); toast("消しました");
+};
+
+$("syncBtn").onclick = () => { $("pcUrl").value = st.settings.pc || ""; $("setInfo").textContent = $("syncText").textContent; $("io").value = ""; $("setDlg").showModal(); };
+$("setClose").onclick = () => $("setDlg").close();
+$("pcUrl").addEventListener("change", ev => { st.settings.pc = ev.target.value.trim(); persist(); toast("保存しました"); });
+$("syncNow").onclick = async () => { await sync(true); $("setInfo").textContent = $("syncText").textContent; };
+$("exportBtn").onclick = () => { $("io").value = JSON.stringify({v:1, items: st.items}); $("io").select(); toast("書き出しました。コピーして保存してください"); };
+$("importBtn").onclick = () => {
+  try{
+    const s = JSON.parse($("io").value);
+    if(!s || !s.items) throw new Error("形式");
+    Object.values(s.items).forEach(x => { const cur = st.items[x.id]; if(!cur || x.ts > cur.ts) st.items[x.id] = x; });
+    save(); render(); toast("読み込みました（新しいほうを残しました）");
+  }catch(e){ toast("読み込めませんでした。書き出したJSONをそのまま貼ってください"); }
+};
+
+renderAdd(); render();
+sync(false);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) sync(false); });
+window.addEventListener("online", () => sync(false));
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(() => {}); }
+})();
+</script>
+</body>
+</html>
