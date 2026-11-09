@@ -20,12 +20,18 @@
   --sans:'Noto Sans JP','Hiragino Sans',sans-serif;
   --ax-shukatsu:rgb(241,157,181); --ax-private:rgb(214,186,140); --ax-eichi:rgb(150,190,160);
   --ax-yakin:rgb(120,114,113); --ax-bcone:rgb(176,166,214); --ax-other:rgb(205,201,200);
+  --ax-zemi:rgb(126,172,214);
 }
+/* 表示は 自動（端末に合わせる）・ライト・ダーク から選べる（2026-11-09 本人「ダークに強制されている」） */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#16151a; --surface:#1e1d23; --surface2:#26252c; --border:#34333b; --text:#ece8ea; --muted:#9b9499;
     --accent-ink:rgb(241,157,181); --red:#ef7b7b; --ax-yakin:#9b9499; --ax-other:#5a5860;
   }
+}
+:root[data-theme="dark"]{
+  --bg:#16151a; --surface:#1e1d23; --surface2:#26252c; --border:#34333b; --text:#ece8ea; --muted:#9b9499;
+  --accent-ink:rgb(241,157,181); --red:#ef7b7b; --ax-yakin:#9b9499; --ax-other:#5a5860;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -89,7 +95,7 @@ details.dn summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 
 .views{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .views button{border:0;background:var(--bg);padding:5px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
 .views button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
-.grid{display:grid;grid-template-columns:40px repeat(6,minmax(0,1fr));border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:11px;line-height:1.35}
+.grid{display:grid;grid-template-columns:38px repeat(7,minmax(0,1fr));border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:11px;line-height:1.35}
 .grid>div{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:32px;padding:3px;min-width:0}
 .grid>div.c0{border-left:0}
 .grid>.hd{border-top:0;min-height:0;padding:5px 2px;text-align:center;font-weight:500;background:var(--surface);position:sticky;top:0;z-index:1;word-break:keep-all;overflow-wrap:anywhere}
@@ -104,9 +110,19 @@ details.dn summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 
 .grid .it{border-left:2px solid var(--c);padding-left:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all}
 .grid .it.over{color:var(--red)}
 .grid .more{color:var(--muted)}
+/* 予定（Googleカレンダー・アプリで足した予定）は塗り。名前から軸を当てただけのものは点線 */
+.grid .it.ev{display:block;border-left:0;border-radius:3px;padding:1px 3px;background:color-mix(in srgb,var(--c) 26%,transparent)}
+.grid .it.ev .tm{display:block;font-size:9.5px;line-height:1.2}
+.grid .it.ev .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.grid .it.ev.guess{background:transparent;outline:1px dashed var(--c);outline-offset:-1px}
+.tm{color:var(--muted);font-variant-numeric:tabular-nums}
+.item.evi{grid-template-columns:44px 1fr}
+.item.evi .tm{font-size:12px;line-height:1.3;padding-top:2px;border-left:3px solid var(--c);padding-left:5px}
+.views.kind button{padding:5px 14px}
+#evRow input{width:auto;min-height:34px;padding:4px 8px;font-size:13px}
 #cellList .list{margin:0}
 /* 表を広く見せるため、書いていないときは軸・期限のボタンをたたむ */
-.add.compact .chips{display:none}
+.add.compact .chips,.add.compact .exp{display:none}
 
 dialog{border:0;border-radius:14px;padding:0;width:min(520px,calc(100% - 24px));background:var(--bg);color:var(--text)}
 dialog::backdrop{background:rgba(0,0,0,.35)}
@@ -133,8 +149,13 @@ textarea{min-height:70px;resize:vertical}
       <input id="addTitle" placeholder="やることを書く（例：英智の教材を印刷）" enterkeyhint="done">
       <button class="btn acc" type="submit">追加</button>
     </div>
+    <div class="row exp"><div class="views kind" id="kinds"><button type="button" data-kind="todo">やること</button><button type="button" data-kind="event">予定</button></div></div>
     <div class="chips" id="axisChips"></div>
     <div class="chips due" id="dueChips"></div>
+    <div class="row exp" id="evRow" hidden>
+      <input type="date" id="evDate" aria-label="予定の日"><input type="time" id="evStart" aria-label="始まり"><span class="muted">〜</span><input type="time" id="evEnd" aria-label="終わり">
+      <span class="small muted">時刻なし＝終日</span>
+    </div>
   </form>
 
   <div class="chips" id="filter"></div>
@@ -161,7 +182,7 @@ textarea{min-height:70px;resize:vertical}
   <h2 id="cellTitle"></h2>
   <div id="cellList"></div>
   <div class="row" style="flex-wrap:nowrap"><input id="cellAdd" placeholder="ここに足す" enterkeyhint="done"><button class="btn acc" type="submit">追加</button></div>
-  <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="cellClose">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" id="cellEv">予定を足す</button><button type="button" class="btn" id="cellClose">閉じる</button></div>
 </form></dialog>
 
 <dialog id="deferDlg"><form class="sheet" id="deferForm" method="dialog" autocomplete="off">
@@ -179,8 +200,27 @@ textarea{min-height:70px;resize:vertical}
   <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="deferCancel">やめる</button><button type="submit" class="btn acc">あとに回す</button></div>
 </form></dialog>
 
+<dialog id="evDlg"><form class="sheet" id="evForm" method="dialog" autocomplete="off">
+  <h2 id="evTitle">予定</h2>
+  <p class="small muted" id="evInfo" style="margin:0"></p>
+  <label class="f" id="evNameF"><span>予定</span><input name="title"></label>
+  <label class="f"><span>軸（Googleカレンダーの色も変わります）</span><select name="axis" id="evAxis"></select></label>
+  <div class="row" id="evTimeF" style="flex-wrap:nowrap">
+    <label class="f" style="flex:1.4"><span>日</span><input name="date" type="date"></label>
+    <label class="f" style="flex:1"><span>始まり</span><input name="start" type="time"></label>
+    <label class="f" style="flex:1"><span>終わり</span><input name="end" type="time"></label>
+  </div>
+  <label class="f" id="evNoteF"><span>メモ（主催・集合・連絡先など）</span><textarea name="note"></textarea></label>
+  <div class="row" style="justify-content:space-between">
+    <button type="button" class="btn ghost danger" id="evDel">消す</button>
+    <div class="row"><button type="button" class="btn" id="evCancel">やめる</button><button type="submit" class="btn acc">保存</button></div>
+  </div>
+</form></dialog>
+
 <dialog id="setDlg"><div class="sheet">
   <h2>設定</h2>
+  <label class="f"><span>表示</span></label>
+  <div class="chips" id="themeChips"></div>
   <label class="f"><span>PCのアドレス（日取り）</span><input id="pcUrl" placeholder="https://…/nittei"></label>
   <p class="small muted" id="setInfo"></p>
   <div class="row">
@@ -189,14 +229,14 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn" id="importBtn" type="button">読み込む</button>
   </div>
   <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
-  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v3</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v4</span><button class="btn" id="setClose" type="button">閉じる</button></div>
 </div></dialog>
 
 <script>
 (function(){
 "use strict";
 const LS = "yarukoto_v1";
-const AXES = [["shukatsu","就活"],["private","プライベート"],["eichi","英智"],["yakin","夜勤"],["bcone","ビーコネ"],["other","その他"]];
+const AXES = [["shukatsu","就活"],["zemi","ゼミ"],["private","プライベート"],["eichi","英智"],["yakin","夜勤"],["bcone","ビーコネ"],["other","その他"]];
 const AXN = Object.fromEntries(AXES);
 const WD = ["日","月","火","水","木","金","土"];
 const pad = n => String(n).padStart(2, "0");
@@ -208,7 +248,7 @@ const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").repl
 const $ = id => document.getElementById(id);
 
 /* ---------- 保存（localStorage が正。PCが起きていれば突き合わせる） ---------- */
-function fresh(){ return {v:1, items:{}, auto:[], serverTs:{}, lastAxis:"other", filter:"all", view:"grid", lastSyncAt:0, settings:{pc:"https://kawauso.tail786f62.ts.net/nittei"}}; }
+function fresh(){ return {v:1, items:{}, auto:[], events:[], serverTs:{}, lastAxis:"other", filter:"all", view:"grid", lastSyncAt:0, settings:{pc:"https://kawauso.tail786f62.ts.net/nittei", theme:"auto"}}; }
 function load(){
   const base = fresh();
   try{
@@ -218,6 +258,14 @@ function load(){
   return base;
 }
 let st = load();
+const THEMES = [["auto","自動（端末に合わせる）"],["light","ライト"],["dark","ダーク"]];
+function applyTheme(){
+  const t = st.settings.theme || "auto";
+  if(t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelector('meta[name="theme-color"]').content = dark ? "#16151a" : "#ffffff";
+}
+applyTheme();
 function persist(){ try{ localStorage.setItem(LS, JSON.stringify(st)); }catch(e){ toast("保存できませんでした"); } }
 let syncTimer = null;
 function save(){ persist(); clearTimeout(syncTimer); syncTimer = setTimeout(() => sync(false), 2500); badge(); }
@@ -252,6 +300,7 @@ async function sync(manual){
     st.serverTs = {};
     (data.items || []).forEach(x => { st.serverTs[x.id] = x.ts; const cur = st.items[x.id]; if(!cur || x.ts >= cur.ts) st.items[x.id] = x; });
     if(Array.isArray(data.auto)) st.auto = data.auto;
+    if(Array.isArray(data.events)) st.events = data.events;   // Googleが取れなかったとき（null）は前のを残す
     st.lastSyncAt = sentAt; syncState = "ok"; persist(); render();
     if(manual) toast("同期しました");
   }catch(e){
@@ -263,9 +312,28 @@ async function sync(manual){
 /* ---------- 一覧の材料 ---------- */
 // 手入力＋就活の自動ぶん。自動ぶんは「できた」の印だけ items に持つ
 function allItems(){
-  const mine = Object.values(st.items).filter(x => !x.deleted && !String(x.id).startsWith("auto:"));
+  const mine = Object.values(st.items).filter(x => !x.deleted && !String(x.id).startsWith("auto:") && !isEv(x));
   const auto = (st.auto || []).map(a => { const o = st.items[a.id]; return Object.assign({}, a, {done: !!(o && o.done), ts: o ? o.ts : 0}); });
   return mine.concat(auto);
+}
+const isEv = x => x.kind === "event" || x.kind === "tag";
+// 予定：Googleカレンダー（PCが返したもの・軸の付け直しを反映）＋アプリで足した予定（まだGoogleに載っていなくても出す）
+function allEvents(){
+  const t = today(), out = [];
+  (st.events || []).forEach(e => {
+    const tag = st.items["gcal:" + e.id];
+    out.push(Object.assign({}, e, tag && !tag.deleted ? {axis: tag.axis, guessed: false} : {}, {src: "g"}));
+  });
+  Object.values(st.items).forEach(x => {
+    if(x.kind === "event" && !x.deleted && x.due) out.push({id: x.id, date: x.due, start: x.start || "", end: x.end || "", title: x.title, axis: x.axis, note: x.note || "", src: "m", pending: !x.gcal_id});
+  });
+  return out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
+}
+function evRow(e){
+  const tm = e.start ? `${e.start}${e.end && e.end !== e.start ? `<br>〜${e.end}` : ""}` : "終日";
+  const meta = [e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
+  return `<div class="item evi"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
+    <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div></div>`;
 }
 function dueLabel(due){
   if(!due) return "";
@@ -290,8 +358,12 @@ function itemRow(x){
 }
 
 /* ---------- 画面 ---------- */
-let addAxis = st.lastAxis || "other", addDue = "";
+let addAxis = st.lastAxis || "other", addDue = "", addKind = "todo";
 function renderAdd(){
+  document.querySelectorAll("#kinds button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === addKind)));
+  $("dueChips").hidden = addKind === "event"; $("evRow").hidden = addKind !== "event";
+  $("addTitle").placeholder = addKind === "event" ? "予定を書く（例：ゼミ発表）" : "やることを書く（例：英智の教材を印刷）";
+  if(addKind === "event" && !$("evDate").value) $("evDate").value = today();
   $("axisChips").innerHTML = AXES.map(([k, n]) =>
     `<button type="button" class="chip" data-axis="${k}" aria-pressed="${k === addAxis}" style="--c:var(--ax-${k})"><i></i>${n}</button>`).join("");
   const t = today(), sun = addDays(t, (7 - dateOf(t).getDay()) % 7);
@@ -301,10 +373,10 @@ function renderAdd(){
     + `<input type="date" id="dueDate" value="${custom ? addDue : ""}" aria-label="期限の日付">`;
 }
 // 表の行：期限切れ・今日から1週間（いつも出す）・それより先でやることがある日・期限なし
-function gridRows(open){
+function gridRows(open, evs){
   const t = today(), rows = [];
   if(open.some(x => x.due && x.due < t)) rows.push({key:"over", match: x => x.due && x.due < t});
-  const later = new Set(open.filter(x => x.due && x.due > addDays(t, 6)).map(x => x.due));
+  const later = new Set(open.filter(x => x.due && x.due > addDays(t, 6)).map(x => x.due).concat(evs.filter(e => e.date > addDays(t, 6)).map(e => e.date)));
   for(let i = 0; i < 7; i++){ const d = addDays(t, i); rows.push({key:d, match: x => x.due === d}); }
   [...later].sort().forEach(d => rows.push({key:d, match: x => x.due === d}));
   rows.push({key:"none", match: x => !x.due});
@@ -316,17 +388,19 @@ function rowLabel(key){
   const d = dateOf(key);
   return {cls: key === today() ? "today" : "", html:`<b>${d.getMonth()+1}/${d.getDate()}</b>${WD[d.getDay()]}`};
 }
-const SHORT = {shukatsu:"就活", private:"プライ<wbr>ベート", eichi:"英智", yakin:"夜勤", bcone:"ビー<wbr>コネ", other:"その他"};
+const SHORT = {shukatsu:"就活", zemi:"ゼミ", private:"プライ<wbr>ベート", eichi:"英智", yakin:"夜勤", bcone:"ビー<wbr>コネ", other:"その他"};
 function renderGrid(open){
-  const t = today(), rows = gridRows(open);
+  const t = today(), evs = allEvents(), rows = gridRows(open, evs);
   let h = `<div class="hd c0"></div>` + AXES.map(([k]) => `<div class="hd" style="--c:var(--ax-${k})"><i></i>${SHORT[k]}</div>`).join("");
   rows.forEach(r => {
     const lab = rowLabel(r.key);
     h += `<div class="dt c0 ${lab.cls}">${lab.html}</div>`;
     AXES.forEach(([k]) => {
-      const list = open.filter(x => x.axis === k && r.match(x)).sort(byDue);
-      const shown = list.slice(0, 3).map(x => `<div class="it ${x.due && x.due < t ? "over" : ""}" style="--c:var(--ax-${k})">${esc(x.title)}</div>`).join("");
-      h += `<div class="cell ${r.key === t ? "today" : ""}" data-cell="${r.key}|${k}" role="button" tabindex="0" aria-label="${esc(rowLabel(r.key).html.replace(/<[^>]+>/g, ""))} ${AXN[k]} ${list.length}件">${shown}${list.length > 3 ? `<div class="more">ほか${list.length - 3}件</div>` : ""}</div>`;
+      const todos = open.filter(x => x.axis === k && r.match(x)).sort(byDue);
+      const es = evs.filter(e => e.axis === k && e.date === r.key);
+      const parts = es.map(e => `<div class="it ev ${e.guessed ? "guess" : ""}" style="--c:var(--ax-${k})">${e.start ? `<span class="tm">${e.start}</span>` : ""}<span class="nm">${esc(e.title)}</span></div>`)
+        .concat(todos.map(x => `<div class="it ${x.due && x.due < t ? "over" : ""}" style="--c:var(--ax-${k})">${esc(x.title)}</div>`));
+      h += `<div class="cell ${r.key === t ? "today" : ""}" data-cell="${r.key}|${k}" role="button" tabindex="0" aria-label="${esc(rowLabel(r.key).html.replace(/<[^>]+>/g, ""))} ${AXN[k]} 予定${es.length}件・やること${todos.length}件">${parts.slice(0, 3).join("")}${parts.length > 3 ? `<div class="more">ほか${parts.length - 3}件</div>` : ""}</div>`;
     });
   });
   return `<div class="grid">${h}</div>`;
@@ -370,12 +444,23 @@ $("addForm").addEventListener("submit", ev => {
   const title = $("addTitle").value.trim();
   if(!title){ $("addTitle").focus(); return; }
   const id = newId();
+  if(addKind === "event"){
+    const date = $("evDate").value; if(!date){ toast("日を選んでください"); return; }
+    const start = $("evStart").value, end = $("evEnd").value || (start ? plusHour(start) : "");
+    put({id, kind: "event", axis: addAxis, title, due: date, start, end, note: "", done: false, deleted: false, created: Date.now()});
+    st.lastAxis = addAxis; persist();
+    $("addTitle").value = ""; $("evStart").value = ""; $("evEnd").value = ""; renderAdd(); render(); $("addTitle").blur(); $("addForm").classList.add("compact");
+    toast(`予定を足しました：［${AXN[addAxis]}］${title}`);
+    return;
+  }
   put({id, axis: addAxis, title, due: addDue, note: "", done: false, deleted: false, created: Date.now()});
   st.lastAxis = addAxis; persist();
   $("addTitle").value = ""; addDue = ""; renderAdd(); render(); $("addTitle").blur(); $("addForm").classList.add("compact");
   toast(`追加しました：［${AXN[addAxis]}］${title}`);
 });
+const plusHour = hm => { const [h, m] = hm.split(":").map(Number); return h >= 23 ? "23:59" : `${pad(h + 1)}:${pad(m)}`; };
 $("addForm").addEventListener("click", ev => {
+  const kd = ev.target.closest("[data-kind]"); if(kd){ addKind = kd.dataset.kind; renderAdd(); return; }
   const a = ev.target.closest("[data-axis]"); if(a){ addAxis = a.dataset.axis; renderAdd(); return; }
   const d = ev.target.closest("[data-due]"); if(d){ addDue = d.dataset.due; renderAdd(); }
 });
@@ -415,13 +500,14 @@ function openEdit(id){
 }
 document.addEventListener("click", ev => {
   const df = ev.target.closest("[data-defer]"); if(df){ openDefer(df.dataset.defer); return; }
+  const ve = ev.target.closest("[data-ev]"); if(ve){ openEv(ve.dataset.ev); return; }
   const t = ev.target.closest("[data-open]"); if(t){ openEdit(t.dataset.open); return; }
   const c = ev.target.closest("[data-cell]"); if(c) openCell(c.dataset.cell);
 });
 document.addEventListener("keydown", ev => {
   if(!(ev.key === "Enter" || ev.key === " ")) return;
-  const t = ev.target.closest("[data-open],[data-cell]"); if(!t) return;
-  ev.preventDefault(); t.dataset.open ? openEdit(t.dataset.open) : openCell(t.dataset.cell);
+  const t = ev.target.closest("[data-open],[data-cell],[data-ev]"); if(!t) return;
+  ev.preventDefault(); t.dataset.open ? openEdit(t.dataset.open) : t.dataset.ev ? openEv(t.dataset.ev) : openCell(t.dataset.cell);
 });
 $("views").addEventListener("click", ev => { const b = ev.target.closest("[data-view]"); if(b){ st.view = b.dataset.view; persist(); render(); } });
 
@@ -475,7 +561,10 @@ function renderCell(){
   $("cellTitle").textContent = `${lab}・${AXN[axis]}`;
   const match = row === "over" ? (x => x.due && x.due < t) : row === "none" ? (x => !x.due) : (x => x.due === row);
   const list = allItems().filter(x => x.axis === axis && match(x)).sort((a, b) => (a.done - b.done) || byDue(a, b));
-  $("cellList").innerHTML = list.length ? `<div class="list">${list.map(itemRow).join("")}</div>` : `<div class="empty">まだありません</div>`;
+  const es = allEvents().filter(e => e.axis === axis && e.date === row);
+  $("cellList").innerHTML = (es.length ? `<div class="list" style="margin-bottom:8px">${es.map(evRow).join("")}</div>` : "")
+    + (list.length ? `<div class="list">${list.map(itemRow).join("")}</div>` : es.length ? "" : `<div class="empty">まだありません</div>`);
+  $("cellEv").hidden = row === "over";
   $("cellAdd").placeholder = `${lab}の${AXN[axis]}に足す`;
 }
 function openCell(key){ cellKey = key; renderCell(); $("cellAdd").value = ""; $("cellDlg").showModal(); }
@@ -488,6 +577,53 @@ $("cellForm").addEventListener("submit", ev => {
   $("cellAdd").value = ""; render(); toast("追加しました");
 });
 $("cellClose").onclick = () => $("cellDlg").close();
+$("cellEv").onclick = () => { const {row, axis} = cellParts(); $("cellDlg").close(); openEv(null, {date: row === "none" ? today() : row, axis}); };
+
+/* ---------- 予定（2026-11-09 本人「予定の追加・Googleカレンダーも軸で分けたい」） ----------
+   アプリで足した予定は kind:"event" で items に入り、PCに届くと Googleカレンダーに色つきで載る。
+   Googleの予定は軸だけ付け直せる（kind:"tag"・id "gcal:<予定ID>"）。PCが色を塗る。名前・時刻・削除はGoogleカレンダーで */
+let evId = null, evSrc = null;
+$("evAxis").innerHTML = AXES.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
+function openEv(id, preset){
+  const f = $("evForm");
+  const g = id ? (st.events || []).find(e => e.id === id) : null;
+  const m = id && !g ? st.items[id] : null;
+  evId = id; evSrc = g ? "g" : "m";
+  const view = g ? (allEvents().find(e => e.id === id) || g) : null;
+  $("evTitle").textContent = g ? g.title : m ? "予定を直す" : "予定を足す";
+  if(g){ const d = dateOf(g.date); $("evInfo").textContent = `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) ${g.start ? `${g.start}〜${g.end}` : "終日"}　名前・時刻・削除はGoogleカレンダーで直してください`; }
+  $("evInfo").hidden = !g;
+  ["evNameF", "evTimeF", "evNoteF"].forEach(k => $(k).hidden = !!g);
+  $("evDel").hidden = !m;
+  f.title.value = m ? m.title : ""; f.title.required = !g;
+  f.axis.value = g ? view.axis : m ? m.axis : (preset && preset.axis) || addAxis;
+  f.date.value = m ? m.due : (preset && preset.date) || today();
+  f.start.value = m ? m.start || "" : ""; f.end.value = m ? m.end || "" : ""; f.note.value = m ? m.note || "" : "";
+  $("evDlg").showModal();
+}
+$("evForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const f = ev.target;
+  if(evSrc === "g"){
+    const g = (st.events || []).find(e => e.id === evId); if(!g) return;
+    const tid = "gcal:" + g.id, cur = st.items[tid];
+    put(Object.assign({}, cur || {created: Date.now(), done: false, note: ""}, {id: tid, kind: "tag", axis: f.axis.value, title: g.title, due: g.date, deleted: false}));
+    $("evDlg").close(); render(); toast(`［${AXN[f.axis.value]}］にしました。PCに届いたらGoogleの色も変わります`);
+    return;
+  }
+  const title = f.title.value.trim(); if(!title || !f.date.value) return;
+  const start = f.start.value, end = f.end.value || (start ? plusHour(start) : "");
+  const base = evId && st.items[evId] ? st.items[evId] : {id: newId(), kind: "event", done: false, deleted: false, created: Date.now()};
+  put(Object.assign({}, base, {title, axis: f.axis.value, due: f.date.value, start, end, note: f.note.value.trim()}));
+  $("evDlg").close(); render(); toast(evId ? "直しました" : "予定を足しました");
+});
+$("evCancel").onclick = () => $("evDlg").close();
+$("evDel").onclick = () => {
+  const x = st.items[evId]; if(!x) return;
+  if(!confirm(`予定「${x.title}」を消しますか？（Googleカレンダーからも消えます）`)) return;
+  put(Object.assign({}, x, {deleted: true})); $("evDlg").close(); render(); toast("消しました");
+};
+
 $("editAxis").innerHTML = AXES.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
 $("editForm").addEventListener("submit", ev => {
   ev.preventDefault();
@@ -505,7 +641,10 @@ $("delBtn").onclick = () => {
   $("dlg").close(); render(); toast("消しました");
 };
 
-$("syncBtn").onclick = () => { $("pcUrl").value = st.settings.pc || ""; $("setInfo").textContent = $("syncText").textContent; $("io").value = ""; $("setDlg").showModal(); };
+function renderTheme(){ $("themeChips").innerHTML = THEMES.map(([k, n]) => `<button type="button" class="chip" data-theme-set="${k}" aria-pressed="${(st.settings.theme || "auto") === k}">${n}</button>`).join(""); }
+$("themeChips").addEventListener("click", ev => { const b = ev.target.closest("[data-theme-set]"); if(!b) return; st.settings.theme = b.dataset.themeSet; persist(); applyTheme(); renderTheme(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+$("syncBtn").onclick = () => { renderTheme(); $("pcUrl").value = st.settings.pc || ""; $("setInfo").textContent = $("syncText").textContent; $("io").value = ""; $("setDlg").showModal(); };
 $("setClose").onclick = () => $("setDlg").close();
 $("pcUrl").addEventListener("change", ev => { st.settings.pc = ev.target.value.trim(); persist(); toast("保存しました"); });
 $("syncNow").onclick = async () => { await sync(true); $("setInfo").textContent = $("syncText").textContent; };
