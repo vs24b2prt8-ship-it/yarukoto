@@ -191,6 +191,11 @@ textarea{min-height:70px;resize:vertical}
   <label class="f"><span>新しい期限</span></label>
   <div class="chips" id="deferDue"></div>
   <input type="date" name="due" id="deferDate" required>
+  <div class="row" id="deferTime" style="flex-wrap:nowrap" hidden>
+    <label class="f" style="flex:1"><span>始まり（空＝終日）</span><input type="time" id="deferStart"></label>
+    <label class="f" style="flex:1"><span>終わり</span><input type="time" id="deferEnd"></label>
+  </div>
+  <p class="small muted" id="deferNote" style="margin:0" hidden></p>
   <label class="f"><span>いつ連絡する？（相手がいるとき。時刻になったら通知します）</span></label>
   <div class="chips" id="deferWhen"></div>
   <div class="row" style="flex-wrap:nowrap">
@@ -230,7 +235,7 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn" id="importBtn" type="button">読み込む</button>
   </div>
   <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
-  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v7</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v8</span><button class="btn" id="setClose" type="button">閉じる</button></div>
 </div></dialog>
 
 <script>
@@ -325,6 +330,10 @@ function allItems(){
 // 自動ぶんの印（できた・見送る・あとに回す）を items に作る。手入力ぶんはそのまま返す
 function mark(id){
   if(st.items[id]) return st.items[id];
+  if(/^(gcal|tpl):/.test(id)){
+    const e = allEvents().find(v => (v.src === "g" ? "gcal:" + v.id : v.id) === id); if(!e) return null;
+    return {id, kind: "tag", axis: e.axis, title: e.title, due: e.date, start: e.start || "", end: e.end || "", note: "", done: false, deleted: false, created: Date.now(), gcal_sig: "tag|" + e.axis};
+  }
   const a = (st.auto || []).find(x => x.id === id); if(!a) return null;
   return {id, axis: "shukatsu", title: a.title, due: a.due, note: "", done: false, deleted: false, created: Date.now()};
 }
@@ -336,15 +345,22 @@ function allEvents(){
   (st.events || []).forEach(e => {
     const tag = st.items["gcal:" + e.id];
     if(tag && tag.skipped) return;
-    out.push(Object.assign({}, e, tag && !tag.deleted ? {axis: tag.axis, guessed: false} : {}, {src: "g"}));
+    const mv = tag && !tag.deleted && tag.move_date ? {date: tag.move_date, start: tag.move_start || "", end: tag.move_end || ""} : {};
+    out.push(Object.assign({}, e, tag && !tag.deleted ? {axis: tag.axis, guessed: false} : {}, mv, {src: "g"}));
   });
   Object.values(st.items).forEach(x => {
     if(x.kind === "event" && !x.deleted && !x.skipped && x.due) out.push({id: x.id, date: x.due, start: x.start || "", end: x.end || "", title: x.title, axis: x.axis, note: x.note || "", src: "m", pending: !x.gcal_id});
   });
   // いつもの型：同じ日・同じ軸・同じ開始の予定がGoogleにあれば出さない（二重に見せない）
   (st.routine || []).forEach(r => {
-    if((st.items[r.id] || {}).skipped) return;
+    const tg = st.items[r.id] || {};
+    if(tg.skipped || tg.move_date) return;
     if(!out.some(e => e.axis === r.axis && e.date === r.date && e.start === r.start)) out.push(Object.assign({}, r, {src: "r"}));
+  });
+  // 動かしたいつもの型：PCがスケジュール管理を書き換えて新しい枠が届くまでは、印から出す
+  Object.values(st.items).forEach(x => {
+    if(!String(x.id).startsWith("tpl:") || !x.move_date || x.skipped || x.deleted) return;
+    if(!out.some(e => e.axis === x.axis && e.date === x.move_date && e.start === (x.move_start || ""))) out.push({id: x.id, date: x.move_date, start: x.move_start || "", end: x.move_end || "", title: x.title, axis: x.axis, src: "r", moved: true});
   });
   return out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
 }
@@ -354,7 +370,7 @@ function evRow(e){
   return `<div class="item evi"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
     <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div>
     <div class="acts">${e.src === "m" ? `<button type="button" class="btn" data-defer="${esc(e.id)}">あとに回す</button><button type="button" class="btn ghost" data-skip="${esc(e.id)}">見送る</button>`
-      : `<button type="button" class="btn ghost" data-evskip="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">見送る</button>`}</div></div>`;
+      : `${e.moved ? "" : `<button type="button" class="btn" data-defer="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">あとに回す</button>`}<button type="button" class="btn ghost" data-evskip="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">見送る</button>`}</div></div>`;
 }
 function dueLabel(due){
   if(!due) return "";
@@ -549,7 +565,7 @@ $("views").addEventListener("click", ev => { const b = ev.target.closest("[data-
 let deferId = null;
 const at = (iso, hhmm) => `${iso}T${hhmm}`;
 function renderDeferChips(){
-  const x = mark(deferId), t = today(), base = x.due && x.due > t ? x.due : t;
+  const x = mark(deferId), t = today(), base = (x.move_date || x.due) && (x.move_date || x.due) > t ? (x.move_date || x.due) : t;
   const sun = addDays(t, (7 - dateOf(t).getDay()) % 7 || 7);
   const dues = [[addDays(base, 1), "1日後"], [addDays(base, 2), "2日後"], [sun, "今週末"], [addDays(base, 7), "1週間後"]];
   $("deferDue").innerHTML = dues.map(([v, n]) => { const d = dateOf(v);
@@ -564,6 +580,12 @@ function openDefer(id){
   deferId = id;
   $("deferTitle").textContent = `「${x.title}」をあとに回す`;
   $("deferDate").value = ""; $("deferAt").value = x.contact_at || ""; $("deferTo").value = x.contact_to || "";
+  // 予定（アプリで足した予定・Googleの予定・いつもの型）は時刻も選べる
+  const isE = x.kind === "event" || x.kind === "tag";
+  $("deferTime").hidden = !isE;
+  $("deferStart").value = isE ? (x.move_start ?? x.start ?? "") : ""; $("deferEnd").value = isE ? (x.move_end ?? x.end ?? "") : "";
+  $("deferNote").hidden = !isE;
+  $("deferNote").textContent = id.startsWith("gcal:") ? "Googleカレンダーの予定も、この日時に動きます。" : id.startsWith("tpl:") ? "スケジュール管理のその日の枠も動きます（行き帰りなどの前後の枠は、スケジュール管理で直してください）。" : "Googleカレンダーの予定も、この日時に動きます。";
   renderDeferChips();
   $("deferDlg").showModal();
 }
@@ -578,7 +600,16 @@ $("deferForm").addEventListener("submit", ev => {
   const due = $("deferDate").value;
   if(!due){ toast("新しい期限を選んでください"); return; }
   const contact_at = ($("deferAt").value || "").slice(0, 16), contact_to = $("deferTo").value.trim();
-  put(Object.assign({}, x, {due, contact_at, contact_to, deferred: (x.deferred || 0) + 1, due_orig: x.due_orig || x.due || ""}));
+  const extra = {};
+  if(x.kind === "event" || x.kind === "tag"){
+    const start = $("deferStart").value, end = $("deferEnd").value || (start ? plusHour(start) : "");
+    if(x.kind === "event") Object.assign(extra, {start, end});
+    else {
+      if(deferId.startsWith("gcal:") && !confirm(`Googleカレンダーの「${x.title}」を ${+due.slice(5, 7)}/${+due.slice(8, 10)} ${start || "終日"} に動かしますか？`)) return;
+      Object.assign(extra, {move_date: due, move_start: start, move_end: end, start, end});
+    }
+  }
+  put(Object.assign({}, x, {due, contact_at, contact_to, deferred: (x.deferred || 0) + 1, due_orig: x.due_orig || x.due || ""}, extra));
   $("deferDlg").close(); render();
   const d = dateOf(due);
   toast(`${d.getMonth()+1}/${d.getDate()}に回しました${contact_at ? "。連絡の時刻に通知します" : ""}`);
