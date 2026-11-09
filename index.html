@@ -230,7 +230,7 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn" id="importBtn" type="button">読み込む</button>
   </div>
   <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
-  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v6</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v7</span><button class="btn" id="setClose" type="button">閉じる</button></div>
 </div></dialog>
 
 <script>
@@ -335,13 +335,15 @@ function allEvents(){
   const t = today(), out = [];
   (st.events || []).forEach(e => {
     const tag = st.items["gcal:" + e.id];
+    if(tag && tag.skipped) return;
     out.push(Object.assign({}, e, tag && !tag.deleted ? {axis: tag.axis, guessed: false} : {}, {src: "g"}));
   });
   Object.values(st.items).forEach(x => {
-    if(x.kind === "event" && !x.deleted && x.due) out.push({id: x.id, date: x.due, start: x.start || "", end: x.end || "", title: x.title, axis: x.axis, note: x.note || "", src: "m", pending: !x.gcal_id});
+    if(x.kind === "event" && !x.deleted && !x.skipped && x.due) out.push({id: x.id, date: x.due, start: x.start || "", end: x.end || "", title: x.title, axis: x.axis, note: x.note || "", src: "m", pending: !x.gcal_id});
   });
   // いつもの型：同じ日・同じ軸・同じ開始の予定がGoogleにあれば出さない（二重に見せない）
   (st.routine || []).forEach(r => {
+    if((st.items[r.id] || {}).skipped) return;
     if(!out.some(e => e.axis === r.axis && e.date === r.date && e.start === r.start)) out.push(Object.assign({}, r, {src: "r"}));
   });
   return out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
@@ -350,7 +352,9 @@ function evRow(e){
   const tm = e.start ? `${e.start}${e.end && e.end !== e.start ? `<br>〜${e.end}` : ""}` : "終日";
   const meta = [e.src === "r" ? "いつもの型（スケジュール管理）" : e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
   return `<div class="item evi"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
-    <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div></div>`;
+    <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div>
+    <div class="acts">${e.src === "m" ? `<button type="button" class="btn" data-defer="${esc(e.id)}">あとに回す</button><button type="button" class="btn ghost" data-skip="${esc(e.id)}">見送る</button>`
+      : `<button type="button" class="btn ghost" data-evskip="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">見送る</button>`}</div></div>`;
 }
 function dueLabel(due){
   if(!due) return "";
@@ -367,6 +371,9 @@ function contactLabel(x){
   return `${day} ${x.contact_at.slice(11, 16)}${x.contact_to ? ` ${esc(x.contact_to)}に連絡` : " に連絡"}`;
 }
 function itemRow(x){
+  if(x.evSkipped){ const d = dateOf(x.due);
+    return `<div class="item"><span></span><div class="t"><b>${esc(x.title)}</b><div class="meta"><span>予定 ${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})${x.start ? " " + x.start : ""}</span><span class="tag">${AXN[x.axis] || ""}</span></div></div>
+      <div class="acts"><button type="button" class="btn" data-unskip="${esc(x.id)}">戻す</button></div></div>`; }
   return `<div class="item ${x.done ? "done" : ""}">
     <input type="checkbox" data-done="${esc(x.id)}" ${x.done ? "checked" : ""} aria-label="できた">
     <div class="t" data-open="${esc(x.id)}" role="button" tabindex="0"><b>${esc(x.title)}</b>
@@ -426,7 +433,9 @@ function renderGrid(open){
 function render(){
   const items = allItems(), open = items.filter(isOpen);
   const twoWeeks = Date.now() - 14 * 864e5;
-  const skippedHtml = list => list.length ? `<details class="dn"><summary>見送った（この2週間・${list.length}件）</summary><div class="list">${list.map(itemRow).join("")}</div></details>` : "";
+  const skEv = Object.values(st.items).filter(x => isEv(x) && x.skipped && !x.deleted && (x.due || "") >= today())
+    .map(x => Object.assign({}, x, {evSkipped: true}));
+  const skippedHtml = list => (list = list.concat(skEv.filter(x => st.view === "grid" || st.filter === "all" || x.axis === st.filter)), list).length ? `<details class="dn"><summary>見送った（この2週間・${list.length}件）</summary><div class="list">${list.map(itemRow).join("")}</div></details>` : "";
   document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === st.view)));
   $("filter").hidden = st.view === "grid";
   if(st.view === "grid"){
@@ -522,6 +531,7 @@ function openEdit(id){
 document.addEventListener("click", ev => {
   const df = ev.target.closest("[data-defer]"); if(df){ openDefer(df.dataset.defer); return; }
   const sk = ev.target.closest("[data-skip]"); if(sk){ const m = mark(sk.dataset.skip); if(m){ put(Object.assign({}, m, {skipped: true})); render(); toast(`見送りました：${m.title}（下の「見送った」から戻せます）`); } return; }
+  const es = ev.target.closest("[data-evskip]"); if(es){ skipEvent(es.dataset.evskip); return; }
   const us = ev.target.closest("[data-unskip]"); if(us){ const m = st.items[us.dataset.unskip]; if(m){ put(Object.assign({}, m, {skipped: false})); render(); toast("戻しました"); } return; }
   const ve = ev.target.closest("[data-ev]"); if(ve){ openEv(ve.dataset.ev); return; }
   const t = ev.target.closest("[data-open]"); if(t){ openEdit(t.dataset.open); return; }
@@ -607,6 +617,15 @@ $("cellEv").onclick = () => { const {row, axis} = cellParts(); $("cellDlg").clos
    Googleの予定は軸だけ付け直せる（kind:"tag"・id "gcal:<予定ID>"）。PCが色を塗る。名前・時刻・削除はGoogleカレンダーで */
 let evId = null, evSrc = null;
 $("evAxis").innerHTML = AXES.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
+// Googleの予定・いつもの型を見送る＝この表から外すだけ（Googleカレンダー・スケジュール管理は変えない）。
+// 印は kind:"tag"。gcal_sig を今の軸にしておくと、PCは色を塗り直さない
+function skipEvent(id){
+  const e = allEvents().find(v => (v.src === "g" ? "gcal:" + v.id : v.id) === id); if(!e) return;
+  const cur = st.items[id];
+  put(Object.assign({}, cur || {created: Date.now(), done: false, note: "", gcal_sig: "tag|" + e.axis},
+    {id, kind: "tag", axis: cur ? cur.axis : e.axis, title: e.title, due: e.date, start: e.start || "", skipped: true, deleted: false}));
+  render(); toast(`見送りました：${e.title}（下の「見送った」から戻せます）`);
+}
 function openEv(id, preset){
   if(id && String(id).startsWith("tpl:")){ toast("いつもの型です。変えるときはスケジュール管理の型で"); return; }
   const f = $("evForm");
