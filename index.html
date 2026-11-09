@@ -114,6 +114,7 @@ details.dn summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 
 .grid .it.ev{display:block;border-left:0;border-radius:3px;padding:1px 3px;background:color-mix(in srgb,var(--c) 26%,transparent)}
 .grid .it.ev .tm{display:block;font-size:9.5px;line-height:1.2}
 .grid .it.ev .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.grid .it.ev.rt{background:var(--surface2);border-left:2px solid var(--c);border-radius:0 3px 3px 0;color:var(--muted)}
 .grid .it.ev.guess{background:transparent;outline:1px dashed var(--c);outline-offset:-1px}
 .tm{color:var(--muted);font-variant-numeric:tabular-nums}
 .item.evi{grid-template-columns:44px 1fr}
@@ -229,14 +230,14 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn" id="importBtn" type="button">読み込む</button>
   </div>
   <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
-  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v4</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v5</span><button class="btn" id="setClose" type="button">閉じる</button></div>
 </div></dialog>
 
 <script>
 (function(){
 "use strict";
 const LS = "yarukoto_v1";
-const AXES = [["shukatsu","就活"],["zemi","ゼミ"],["private","プライベート"],["eichi","英智"],["yakin","夜勤"],["bcone","ビーコネ"],["other","その他"]];
+const AXES = [["shukatsu","就活"],["zemi","大学"],["private","プライベート"],["eichi","英智"],["yakin","夜勤"],["bcone","ビーコネ"],["other","その他"]];
 const AXN = Object.fromEntries(AXES);
 const WD = ["日","月","火","水","木","金","土"];
 const pad = n => String(n).padStart(2, "0");
@@ -300,7 +301,8 @@ async function sync(manual){
     st.serverTs = {};
     (data.items || []).forEach(x => { st.serverTs[x.id] = x.ts; const cur = st.items[x.id]; if(!cur || x.ts >= cur.ts) st.items[x.id] = x; });
     if(Array.isArray(data.auto)) st.auto = data.auto;
-    if(Array.isArray(data.events)) st.events = data.events;   // Googleが取れなかったとき（null）は前のを残す
+    if(Array.isArray(data.events)) st.events = data.events;
+    if(Array.isArray(data.routine)) st.routine = data.routine;   // いつもの型（授業・夜勤・英智）   // Googleが取れなかったとき（null）は前のを残す
     st.lastSyncAt = sentAt; syncState = "ok"; persist(); render();
     if(manual) toast("同期しました");
   }catch(e){
@@ -327,11 +329,15 @@ function allEvents(){
   Object.values(st.items).forEach(x => {
     if(x.kind === "event" && !x.deleted && x.due) out.push({id: x.id, date: x.due, start: x.start || "", end: x.end || "", title: x.title, axis: x.axis, note: x.note || "", src: "m", pending: !x.gcal_id});
   });
+  // いつもの型：同じ日・同じ軸・同じ開始の予定がGoogleにあれば出さない（二重に見せない）
+  (st.routine || []).forEach(r => {
+    if(!out.some(e => e.axis === r.axis && e.date === r.date && e.start === r.start)) out.push(Object.assign({}, r, {src: "r"}));
+  });
   return out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
 }
 function evRow(e){
   const tm = e.start ? `${e.start}${e.end && e.end !== e.start ? `<br>〜${e.end}` : ""}` : "終日";
-  const meta = [e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
+  const meta = [e.src === "r" ? "いつもの型（スケジュール管理）" : e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
   return `<div class="item evi"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
     <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div></div>`;
 }
@@ -376,7 +382,7 @@ function renderAdd(){
 function gridRows(open, evs){
   const t = today(), rows = [];
   if(open.some(x => x.due && x.due < t)) rows.push({key:"over", match: x => x.due && x.due < t});
-  const later = new Set(open.filter(x => x.due && x.due > addDays(t, 6)).map(x => x.due).concat(evs.filter(e => e.date > addDays(t, 6)).map(e => e.date)));
+  const later = new Set(open.filter(x => x.due && x.due > addDays(t, 6)).map(x => x.due).concat(evs.filter(e => e.src !== "r" && e.date > addDays(t, 6)).map(e => e.date)));
   for(let i = 0; i < 7; i++){ const d = addDays(t, i); rows.push({key:d, match: x => x.due === d}); }
   [...later].sort().forEach(d => rows.push({key:d, match: x => x.due === d}));
   rows.push({key:"none", match: x => !x.due});
@@ -388,7 +394,7 @@ function rowLabel(key){
   const d = dateOf(key);
   return {cls: key === today() ? "today" : "", html:`<b>${d.getMonth()+1}/${d.getDate()}</b>${WD[d.getDay()]}`};
 }
-const SHORT = {shukatsu:"就活", zemi:"ゼミ", private:"プライ<wbr>ベート", eichi:"英智", yakin:"夜勤", bcone:"ビー<wbr>コネ", other:"その他"};
+const SHORT = {shukatsu:"就活", zemi:"大学", private:"プライ<wbr>ベート", eichi:"英智", yakin:"夜勤", bcone:"ビー<wbr>コネ", other:"その他"};
 function renderGrid(open){
   const t = today(), evs = allEvents(), rows = gridRows(open, evs);
   let h = `<div class="hd c0"></div>` + AXES.map(([k]) => `<div class="hd" style="--c:var(--ax-${k})"><i></i>${SHORT[k]}</div>`).join("");
@@ -398,7 +404,7 @@ function renderGrid(open){
     AXES.forEach(([k]) => {
       const todos = open.filter(x => x.axis === k && r.match(x)).sort(byDue);
       const es = evs.filter(e => e.axis === k && e.date === r.key);
-      const parts = es.map(e => `<div class="it ev ${e.guessed ? "guess" : ""}" style="--c:var(--ax-${k})">${e.start ? `<span class="tm">${e.start}</span>` : ""}<span class="nm">${esc(e.title)}</span></div>`)
+      const parts = es.map(e => `<div class="it ev ${e.guessed ? "guess" : ""} ${e.src === "r" ? "rt" : ""}" style="--c:var(--ax-${k})">${e.start ? `<span class="tm">${e.start}</span>` : ""}<span class="nm">${esc(e.title)}</span></div>`)
         .concat(todos.map(x => `<div class="it ${x.due && x.due < t ? "over" : ""}" style="--c:var(--ax-${k})">${esc(x.title)}</div>`));
       h += `<div class="cell ${r.key === t ? "today" : ""}" data-cell="${r.key}|${k}" role="button" tabindex="0" aria-label="${esc(rowLabel(r.key).html.replace(/<[^>]+>/g, ""))} ${AXN[k]} 予定${es.length}件・やること${todos.length}件">${parts.slice(0, 3).join("")}${parts.length > 3 ? `<div class="more">ほか${parts.length - 3}件</div>` : ""}</div>`;
     });
@@ -585,6 +591,7 @@ $("cellEv").onclick = () => { const {row, axis} = cellParts(); $("cellDlg").clos
 let evId = null, evSrc = null;
 $("evAxis").innerHTML = AXES.map(([k, n]) => `<option value="${k}">${n}</option>`).join("");
 function openEv(id, preset){
+  if(id && String(id).startsWith("tpl:")){ toast("いつもの型です。変えるときはスケジュール管理の型で"); return; }
   const f = $("evForm");
   const g = id ? (st.events || []).find(e => e.id === id) : null;
   const m = id && !g ? st.items[id] : null;
