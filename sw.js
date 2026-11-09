@@ -1,7 +1,7 @@
 // やること service worker
 // 画面（HTML）はネットワーク優先（ブラウザの保存も使わず毎回取りに行く＝公開してすぐ新しい版になる）で3.5秒待ってだめならキャッシュ。アイコン等はキャッシュ優先。
 // index.html を変えたら VERSION を必ず上げる（上げないと古い画面が出続ける）
-const VERSION = "yarukoto-v8";
+const VERSION = "yarukoto-v9";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

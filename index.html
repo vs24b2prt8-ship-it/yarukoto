@@ -115,6 +115,15 @@ details.dn summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 
 .grid .it.ev .tm{display:block;font-size:9.5px;line-height:1.2}
 .grid .it.ev .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .grid .it.ev.rt{background:var(--surface2);border-left:2px solid var(--c);border-radius:0 3px 3px 0;color:var(--muted)}
+.grid .it.ev.clash{outline:2px solid var(--red);outline-offset:-2px}
+.grid .it.ev.clash .tm{color:var(--red);font-weight:700}
+.grid>.dt .cl{display:block;margin-top:2px;font-size:9.5px;font-weight:700;color:var(--red)}
+.clashbox{margin:0 0 10px;padding:8px 10px;border:1px solid var(--red);border-left:4px solid var(--red);border-radius:6px;background:color-mix(in srgb,var(--red) 8%,var(--surface))}
+.clashbox b{color:var(--red);font-size:13px}
+.clashbox button{display:block;width:100%;text-align:left;margin-top:4px;padding:4px 0;border:0;background:none;color:var(--text);font:inherit;font-size:12.5px;cursor:pointer}
+.clashbox button span{color:var(--muted)}
+.item.evi.clash .tm{border-left-color:var(--red);color:var(--red);font-weight:700}
+.item .meta .clash{color:var(--red);font-weight:700}
 .grid .it.ev.guess{background:transparent;outline:1px dashed var(--c);outline-offset:-1px}
 .tm{color:var(--muted);font-variant-numeric:tabular-nums}
 .item.evi{grid-template-columns:44px 1fr}
@@ -235,7 +244,7 @@ textarea{min-height:70px;resize:vertical}
     <button class="btn" id="importBtn" type="button">読み込む</button>
   </div>
   <textarea id="io" placeholder="書き出したJSONがここに出ます。読み込むときはここに貼ってから「読み込む」"></textarea>
-  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v8</span><button class="btn" id="setClose" type="button">閉じる</button></div>
+  <div class="row" style="justify-content:space-between"><span class="small muted">yarukoto-v9</span><button class="btn" id="setClose" type="button">閉じる</button></div>
 </div></dialog>
 
 <script>
@@ -362,13 +371,37 @@ function allEvents(){
     if(!String(x.id).startsWith("tpl:") || !x.move_date || x.skipped || x.deleted) return;
     if(!out.some(e => e.axis === x.axis && e.date === x.move_date && e.start === (x.move_start || ""))) out.push({id: x.id, date: x.move_date, start: x.move_start || "", end: x.move_end || "", title: x.title, axis: x.axis, src: "r", moved: true});
   });
-  return out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
+  const res = out.filter(e => e.date >= t && AXN[e.axis]).sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || ""));
+  markClash(res);
+  return res;
+}
+const toMin = hm => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+function markClash(evs){
+  evs.forEach(e => {
+    e.clash = [];
+    if(!e.start) return;
+    e._s = toMin(e.start); e._e = e.end ? toMin(e.end) : e._s + 60;
+    if(e._e <= e._s) e._e += 1440;
+  });
+  for(let i = 0; i < evs.length; i++){
+    const a = evs[i]; if(!a.start) continue;
+    for(let j = i + 1; j < evs.length && evs[j].date === a.date; j++){
+      const b = evs[j]; if(!b.start) continue;
+      if(a._s < b._e && b._s < a._e){ a.clash.push(b); b.clash.push(a); }
+    }
+  }
+}
+// かぶっている組（表の上に並べる）
+function clashPairs(evs){
+  const pairs = [];
+  evs.forEach((a, i) => a.clash.forEach(b => { if(evs.indexOf(b) > i) pairs.push([a, b]); }));
+  return pairs;
 }
 function evRow(e){
   const tm = e.start ? `${e.start}${e.end && e.end !== e.start ? `<br>〜${e.end}` : ""}` : "終日";
-  const meta = [e.src === "r" ? "いつもの型（スケジュール管理）" : e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
-  return `<div class="item evi"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
-    <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div></div>
+  const meta = [e.clash && e.clash.length ? `<span class="clash">! 時間がかぶっています：${e.clash.map(c => `${c.start} ${esc(c.title)}（${AXN[c.axis]}）`).join("、")}</span>` : "", e.src === "r" ? "いつもの型（スケジュール管理）" : e.src === "g" ? "Googleカレンダー" : e.pending ? "PCに届いたらGoogleに載せます" : "このアプリで足した予定", e.guessed ? "軸は名前から推測（押して決める）" : "", e.location ? esc(e.location) : ""].filter(Boolean);
+  return `<div class="item evi ${e.clash && e.clash.length ? "clash" : ""}"><div class="tm" style="--c:var(--ax-${e.axis})">${tm}</div>
+    <div class="t" data-ev="${esc(e.id)}" role="button" tabindex="0"><b>${esc(e.title)}</b><div class="meta">${meta.map(m => m.startsWith("<span") ? m : `<span>${m}</span>`).join("")}</div></div>
     <div class="acts">${e.src === "m" ? `<button type="button" class="btn" data-defer="${esc(e.id)}">あとに回す</button><button type="button" class="btn ghost" data-skip="${esc(e.id)}">見送る</button>`
       : `${e.moved ? "" : `<button type="button" class="btn" data-defer="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">あとに回す</button>`}<button type="button" class="btn ghost" data-evskip="${esc(e.src === "g" ? "gcal:" + e.id : e.id)}">見送る</button>`}</div></div>`;
 }
@@ -435,16 +468,21 @@ function renderGrid(open){
   let h = `<div class="hd c0"></div>` + AXES.map(([k]) => `<div class="hd" style="--c:var(--ax-${k})"><i></i>${SHORT[k]}</div>`).join("");
   rows.forEach(r => {
     const lab = rowLabel(r.key);
-    h += `<div class="dt c0 ${lab.cls}">${lab.html}</div>`;
+    const nc = evs.filter(e => e.date === r.key && e.clash.length).length;
+    h += `<div class="dt c0 ${lab.cls}">${lab.html}${nc ? `<span class="cl">かぶり</span>` : ""}</div>`;
     AXES.forEach(([k]) => {
       const todos = open.filter(x => x.axis === k && r.match(x)).sort(byDue);
       const es = evs.filter(e => e.axis === k && e.date === r.key);
-      const parts = es.map(e => `<div class="it ev ${e.guessed ? "guess" : ""} ${e.src === "r" ? "rt" : ""}" style="--c:var(--ax-${k})">${e.start ? `<span class="tm">${e.start}</span>` : ""}<span class="nm">${esc(e.title)}</span></div>`)
+      const parts = es.map(e => `<div class="it ev ${e.guessed ? "guess" : ""} ${e.src === "r" ? "rt" : ""} ${e.clash.length ? "clash" : ""}" style="--c:var(--ax-${k})">${e.start ? `<span class="tm">${e.start}</span>` : ""}<span class="nm">${esc(e.title)}</span></div>`)
         .concat(todos.map(x => `<div class="it ${x.due && x.due < t ? "over" : ""}" style="--c:var(--ax-${k})">${esc(x.title)}</div>`));
       h += `<div class="cell ${r.key === t ? "today" : ""}" data-cell="${r.key}|${k}" role="button" tabindex="0" aria-label="${esc(rowLabel(r.key).html.replace(/<[^>]+>/g, ""))} ${AXN[k]} 予定${es.length}件・やること${todos.length}件">${parts.slice(0, 3).join("")}${parts.length > 3 ? `<div class="more">ほか${parts.length - 3}件</div>` : ""}</div>`;
     });
   });
-  return `<div class="grid">${h}</div>`;
+  const pairs = clashPairs(evs);
+  const md = iso => { const d = dateOf(iso); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; };
+  const box = pairs.length ? `<div class="clashbox" role="alert"><b>! 時間がかぶっている予定 ${pairs.length}組</b>${pairs.map(([a, b]) =>
+    `<button type="button" data-cell="${a.date}|${a.axis}">${md(a.date)}　${a.start} ${esc(a.title)}<span>（${AXN[a.axis]}）</span> × ${b.start} ${esc(b.title)}<span>（${AXN[b.axis]}）</span></button>`).join("")}</div>` : "";
+  return `${box}<div class="grid">${h}</div>`;
 }
 function render(){
   const items = allItems(), open = items.filter(isOpen);
